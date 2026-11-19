@@ -1,24 +1,11 @@
 "use client";
-import { useState, useEffect } from "react";
-import { Calendar, Clock, Star, DollarSign, BookOpen, CheckCircle } from "lucide-react";
-import { Availability } from "@/lib/types";
+import { Calendar, Star, DollarSign, BookOpen, CheckCircle } from "lucide-react";
+import type { TutorMatch } from "@/lib/loadTutorMatches";
 import { normalizeAvailability } from "@/lib/utils";
 
 
 interface TutorCardProps {
-  tutor: {
-    tutor_id: string;
-    fullname: string;
-    languages_with_levels: string[];
-    learning_goals: string[];
-    learning_styles: string[];
-    teaching_specialities: string[];
-    rate_per_hour: number;
-    availability: Availability[];
-    rating: number | null;
-    session_preference: string;
-    reason: string;
-  };
+  tutor: TutorMatch;
 }
 
 export default function TutorCard({ tutor }: TutorCardProps) {

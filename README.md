@@ -48,6 +48,12 @@ AND session_preference = student.session_preference
 
 The HTTP route requests up to **three** matches. For each match, the recommendation function calls the local `/api/gemini` route to request a short explanation, then returns the tutor ID and reason. The browser fetches the corresponding JSON profiles and preserves recommendation order when merging them for display.
 
+## Testing tutor lookups
+
+After installing dependencies, run `npm test` to check empty searches, tutor selection, and recommendation order. These tests run offline without an embedding model or an API key.
+
+Run `npm run test:browser` to exercise student switching in Chromium with mocked search responses. If Chromium is missing, install the matching browser once with `npx playwright install --only-shell chromium`. The tests bundle the real client page and run without a Next.js server.
+
 ## Local setup
 
 Prerequisites:
@@ -117,7 +123,7 @@ The Hugging Face token reference is also commented out. TinyLlama is instantiate
 | Method | Route | Behavior |
 | --- | --- | --- |
 | GET | `/api/get_students` | Returns the cleaned, bundled student dataset. |
-| GET | `/api/get_tutors` | Returns all cleaned tutors. Optional comma-separated `ids` limits the response. |
+| GET | `/api/get_tutors` | Omit `ids` to list all cleaned tutors. Pass comma-separated IDs to filter. An empty `ids` filter returns an empty list. |
 | POST | `/api/recommend` | Accepts `{ "student": { ... } }`; requests up to three `{ "tutor_id": "...", "reason": "..." }` records. A missing/falsy `student` returns 400; caught failures return 500. |
 | POST | `/api/gemini` | Accepts `{ "prompt": "..." }` and requests a Gemini `gemini-2.5-flash` response when configured. Called by the interactive recommendation function for each retrieved tutor. |
 

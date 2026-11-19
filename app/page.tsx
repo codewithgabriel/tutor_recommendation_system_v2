@@ -1,23 +1,31 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, type ChangeEvent } from "react";
 import TutorCard from "../components/TutorCard";
-import { Search, Calendar, DollarSign, BookOpen, Clock, Star, User, CheckCircle } from "lucide-react";
-import { Student } from '@/lib/types';
+import { Search, Calendar, DollarSign, BookOpen, User, CheckCircle } from "lucide-react";
+import type { Student } from '@/lib/types';
+import { loadTutorMatches, type TutorMatch } from '@/lib/loadTutorMatches';
 import { normalizeAvailability } from '@/lib/utils';
 
 // import { build_tutor_index } from "@/rec_system/build_tutor_index";
 
 
+type SearchState =
+  | { status: "idle" | "loading" | "error" }
+  | { status: "complete"; matches: TutorMatch[] };
+
 export default function Home() {
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState<string>("");
-  const [recommendations, setRecommendations] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState<SearchState>({ status: "idle" });
+  const request = useRef<AbortController | null>(null);
+  const loading = search.status === "loading";
 
   const selectedStudent = students.find(s => s.student_id === selectedStudentId);
 
-  function handleChange(ev: any) {
+  function handleChange(ev: ChangeEvent<HTMLSelectElement>) {
+    request.current?.abort();
+    setSearch({ status: "idle" });
     setSelectedStudentId(ev.target.value);
   }
 
@@ -33,47 +41,23 @@ export default function Home() {
         setStudents(data);
       })
       .catch(err => console.error("Failed to load students:", err));
+    return () => request.current?.abort();
   }, []);
 
   const handleGetRecommendations = async () => {
     if (!selectedStudent) return;
 
-    setLoading(true);
+    request.current?.abort();
+    const controller = new AbortController();
+    request.current = controller;
+    setSearch({ status: "loading" });
     try {
-      // first get recommendations (tutor_id + reason)
-      const recRes = await fetch("/api/recommend", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ student: selectedStudent }),
-      });
-
-      const recs: { tutor_id: string; reason: string }[] = await recRes.json();
-      const ids = recs.map(r => r.tutor_id).join(",");
-
-      // retch all tutors that matchs the ids 
-      const tutorRes = await fetch(`/api/get_tutors?ids=${ids}`);
-      const tutors = await tutorRes.json();
-
-      // join tutors with reasons
-      const merged = recs
-        .map(rec => {
-          const tutor = tutors.find(
-            (t: any) => t.tutor_id === rec.tutor_id
-          );
-          if (!tutor) return null;
-
-          return {
-            ...tutor,
-            reason: rec.reason,
-          };
-        })
-        .filter(Boolean);
-      // set recommendation to the merged data
-      setRecommendations(merged);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+      const matches = await loadTutorMatches(selectedStudent, controller.signal);
+      if (!controller.signal.aborted) setSearch({ status: "complete", matches });
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      console.error("Could not load tutor matches", error);
+      setSearch({ status: "error" });
     }
   };
 
@@ -229,17 +213,24 @@ export default function Home() {
         )}
 
         {/* Recommendations */}
-        {recommendations.length > 0 && (
+        {search.status === "error" && (
+          <p role="alert" className="mb-6 text-center text-red-700">
+            We couldn’t load tutor recommendations. Select Get Recommendations to try again.
+          </p>
+        )}
+        {search.status === "complete" && search.matches.length === 0 && (
+          <p role="status" className="mb-6 text-center text-gray-700">
+            No tutors matched {selectedStudent?.fullname}’s search.
+          </p>
+        )}
+        {search.status === "complete" && search.matches.length > 0 && (
           <div>
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Recommended Tutors</h2>
             <div className="grid gap-6">
-              {recommendations.map((tutor) => (
+              {search.matches.map((tutor) => (
                 <TutorCard
                   key={tutor.tutor_id}
-                  tutor={{
-                    ...tutor, // spread all copy of tutor
-
-                  }}
+                  tutor={tutor}
                 />
               ))}
             </div>

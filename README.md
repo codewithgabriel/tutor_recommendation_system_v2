@@ -52,6 +52,8 @@ The HTTP route requests up to **three** matches. For each match, the recommendat
 
 After installing dependencies, run `npm test` to check empty searches, tutor selection, and recommendation order. These tests run offline without an embedding model or an API key.
 
+Run `npm run test:browser` to exercise student switching in Chromium with mocked search responses. If Chromium is missing, install the matching browser once with `npx playwright install --only-shell chromium`. The tests bundle the real client page and run without a Next.js server.
+
 ## Local setup
 
 Prerequisites:
